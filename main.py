@@ -17,6 +17,7 @@ REMOVE_BG_API_KEY = os.getenv("REMOVE_BG_API_KEY")
 
 bot = Client("sticker_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+# Minimal HTTP server for Render health check
 app = Flask(__name__)
 @app.route("/")
 def home():
@@ -40,27 +41,27 @@ def process_image(photo_path):
     result = Image.open(BytesIO(response.content)).convert("RGBA")
     result = result.resize((512, 512), Image.LANCZOS)
     result_path = "sticker.png"
-    result.save(result_path)
+    result.save(result_path, format="PNG")
     return result_path
 
 @bot.on_message(filters.command("start") & filters.private)
 async def start(_, message: Message):
-    await message.reply("👋 Send me a photo and I’ll turn it into a sticker-ready image (background removed).")
+    await message.reply("👋 Send me a photo. I’ll remove the background, resize it to 512×512, and send it back as a sticker-ready PNG document.")
 
 @bot.on_message(filters.photo & filters.private)
 async def photo(_, message: Message):
-    msg = await message.reply("⏳ Processing...")
+    msg = await message.reply("⏳ Processing your image...")
     file_path = await message.download()
     final_path = process_image(file_path)
 
     if final_path:
-        await message.reply_photo(
-            photo=final_path,
-            caption="✅ Sticker ready!\nSend this image to [@Stickers](https://t.me/Stickers) to add it to your pack."
+        await message.reply_document(
+            document=final_path,
+            caption="✅ Background removed and resized to 512×512.\nReady for sticker upload!"
         )
     else:
-        await message.reply("❌ Failed to remove background.")
-    
+        await message.reply("❌ Failed to remove background. Make sure the image is clear and valid.")
+
     await msg.delete()
     os.remove(file_path)
     if final_path: os.remove(final_path)
